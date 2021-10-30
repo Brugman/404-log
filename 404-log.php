@@ -2,11 +2,11 @@
 
 /**
  * Plugin Name: 404 Log
- * Description: What do I do?
+ * Description:
  * Version: 0.2.0
- * Plugin URI: https://timbr.dev/
+ * Plugin URI: https://github.com/Brugman/404-log
  * Author: Tim Brugman
- * Author URI: https://timbr.dev/
+ * Author URI: https://timbr.dev
  * Text Domain: foflog
  */
 
@@ -16,16 +16,15 @@ if ( !defined( 'ABSPATH' ) )
 define( 'FOFLOG_FILE_PATH', __FILE__ );
 define( 'FOFLOG_FILE', basename( __FILE__ ) );
 define( 'FOFLOG_DIR', basename( __DIR__ ) );
-
-define( 'FOFLOG_USE_FS', true );
-define( 'FOFLOG_USE_DB', true );
-
 define( 'FOFLOG_LOG_DIR', __DIR__.'/logs/' );
 
 if ( !class_exists( 'FOFLog' ) )
 {
     class FOFLog
     {
+        private $use_fs = true;
+        private $use_db = true;
+
         /**
          * Constructor.
          */
@@ -62,7 +61,7 @@ if ( !class_exists( 'FOFLog' ) )
 
         private function admin_url( $args = [] )
         {
-            $args['page'] = 'foflog-main';
+            $args['page'] = 'foflog';
 
             return admin_url( 'tools.php?'.http_build_query( $args ) );
         }
@@ -79,9 +78,14 @@ if ( !class_exists( 'FOFLog' ) )
             foreach ( $log_files as $log_file )
                 $log_lines .= file_get_contents( $log_file );
 
+            $log_lines = trim( $log_lines );
+
+            if ( $log_lines == '' )
+                return [];
+
             $log_entries = [];
 
-            $lines = explode( "\n", trim( $log_lines ) );
+            $lines = explode( "\n", $log_lines );
             foreach ( $lines as $line )
                 $log_entries[] = explode( ',', $line );
 
@@ -147,8 +151,8 @@ if ( !class_exists( 'FOFLog' ) )
 <table class="wp-list-table widefat fixed striped" style="width: auto; margin-top: 10px;">
     <thead>
         <tr>
-            <td>Date</td>
-            <td>URL</td>
+            <td><?php _e( 'Date', $this->textdomain() ); ?></td>
+            <td><?php _e( 'URL', $this->textdomain() ); ?></td>
         </tr>
     </thead>
     <tbody>
@@ -161,7 +165,7 @@ if ( !class_exists( 'FOFLog' ) )
     </tbody>
 </table>
 <?php else: // $log_entries is empty ?>
-    <p>No log entries found.</p>
+    <p><?php _e( 'No log entries found.', $this->textdomain() ); ?></p>
 <?php endif; // $log_entries ?>
 <?php
         }
@@ -174,29 +178,29 @@ if ( !class_exists( 'FOFLog' ) )
         {
             $subpages = [
                 [
-                    'title' => __( 'Red', $this->textdomain() ),
-                    'link'  => $this->admin_url( [ 'subpage' => 'red' ] ),
+                    'title' => __( 'Settings', $this->textdomain() ),
+                    'link'  => $this->admin_url( [ 'subpage' => 'settings' ] ),
                 ],
                 [
-                    'title' => __( 'Green', $this->textdomain() ),
-                    'link'  => $this->admin_url( [ 'subpage' => 'green' ] ),
+                    'title' => __( 'Logs', $this->textdomain() ),
+                    'link'  => $this->admin_url( [ 'subpage' => 'logs' ] ),
                 ],
             ];
 ?>
 <?php /* code disabled
-<link rel="stylesheet" href="<?=plugins_url( 'your-plugin.min.css', KONMARI_FILE_PATH );?>" />
+<link rel="stylesheet" href="<?=plugins_url( 'your-plugin.min.css', FOFLOG_FILE_PATH );?>" />
 */ ?>
 <style>
-.konmari-acf-admin-toolbar{background:#fff;border-bottom:1px solid #ccd0d4}.konmari-acf-admin-toolbar h2{font-size:14px;line-height:2.57143;display:inline-block;padding:5px 0;margin:0 10px 0 0}.konmari-acf-admin-toolbar h2 i{vertical-align:middle;color:#babbbc}.konmari-acf-admin-toolbar .konmari-acf-tab{display:inline-block;font-size:14px;line-height:2.57143;padding:5px;margin:0 5px;text-decoration:none;color:inherit}.konmari-acf-admin-toolbar .konmari-acf-tab.is-active{border-bottom:#0071a4 solid 3px;padding-bottom:2px}.konmari-acf-admin-toolbar .konmari-acf-tab:hover{color:#00a0d2}.konmari-acf-admin-toolbar .konmari-acf-tab:focus{box-shadow:none}#wpcontent .konmari-acf-admin-toolbar{margin-left:-20px;padding-left:20px}@media screen and (max-width:600px){.konmari-acf-admin-toolbar{display:none}}
+.foflog-acf-admin-toolbar{background:#fff;border-bottom:1px solid #ccd0d4}.foflog-acf-admin-toolbar h2{font-size:14px;line-height:2.57143;display:inline-block;padding:5px 0;margin:0 10px 0 0}.foflog-acf-admin-toolbar h2 i{vertical-align:middle;color:#babbbc}.foflog-acf-admin-toolbar .foflog-acf-tab{display:inline-block;font-size:14px;line-height:2.57143;padding:5px;margin:0 5px;text-decoration:none;color:inherit}.foflog-acf-admin-toolbar .foflog-acf-tab.is-active{border-bottom:#0071a4 solid 3px;padding-bottom:2px}.foflog-acf-admin-toolbar .foflog-acf-tab:hover{color:#00a0d2}.foflog-acf-admin-toolbar .foflog-acf-tab:focus{box-shadow:none}#wpcontent .foflog-acf-admin-toolbar{margin-left:-20px;padding-left:20px}@media screen and (max-width:600px){.foflog-acf-admin-toolbar{display:none}}
 </style>
-<div class="konmari-acf-admin-toolbar">
-    <h2><i class="konmari-acf-tab-icon dashicons dashicons-dashboard"></i> KonMari Dashboard</h2>
+<div class="foflog-acf-admin-toolbar">
+    <h2><i class="foflog-acf-tab-icon dashicons dashicons-dashboard"></i> <?php _e( '404 Log', $this->textdomain() ); ?></h2>
 <?php
             foreach ( $subpages as $subpage )
             {
                 $is_active = strpos( $subpage['link'], $_SERVER['REQUEST_URI'] ) !== false ? 'is-active' : '';
 ?>
-    <a class="konmari-acf-tab <?=$is_active;?>" href="<?=$subpage['link'];?>"><?=$subpage['title'];?></a>
+    <a class="foflog-acf-tab <?=$is_active;?>" href="<?=$subpage['link'];?>"><?=$subpage['title'];?></a>
 <?php
             }
 ?>
@@ -210,27 +214,43 @@ if ( !class_exists( 'FOFLog' ) )
 
         public function page_controller()
         {
-            $this->page_main();
+            $this->page_header();
+
+            $subpage = $_GET['subpage'] ?? 'settings';
+
+            if ( $subpage == 'settings' )
+                $this->page_settings();
+            if ( $subpage == 'logs' )
+                $this->page_logs();
+
+            $this->page_footer();
         }
 
-        private function page_main()
+        private function page_settings()
         {
-            $this->page_header();
 ?>
-<h1><?php _e( '404 log', $this->textdomain() ); ?></h1>
+<h1><?php _e( 'Settings', $this->textdomain() ); ?></h1>
+
+<p>¯\_(ツ)_/¯</p>
+<?php
+        }
+
+        private function page_logs()
+        {
+?>
+<h1><?php _e( 'Logs', $this->textdomain() ); ?></h1>
 
 <div style="display: grid; grid-template-columns: auto auto;">
     <div>
-        <h2>File logs</h2>
+        <h2><?php _e( 'File logs', $this->textdomain() ); ?></h2>
         <?php $this->display_log( $this->get_logs_from_fs() ); ?>
     </div>
     <div>
-        <h2>DB logs</h2>
+        <h2><?php _e( 'DB logs', $this->textdomain() ); ?></h2>
         <?php $this->display_log( $this->get_logs_from_db() ); ?>
     </div>
 </div>
 <?php
-            $this->page_footer();
         }
 
         /**
@@ -240,10 +260,10 @@ if ( !class_exists( 'FOFLog' ) )
         public function hook_register_settings_page()
         {
             add_management_page(
-                '404 log', // page title
-                '404 log', // menu title
+                __( '404 log', $this->textdomain() ), // page title
+                __( '404 log', $this->textdomain() ), // menu title
                 'manage_options', // capability
-                'foflog-main', // menu slug
+                'foflog', // menu slug
                 [ $this, 'page_controller' ], // function
                 null // position
             );
@@ -251,10 +271,8 @@ if ( !class_exists( 'FOFLog' ) )
 
         public function hook_register_subpage_nav( $screen )
         {
-            // $this->d( $screen->id );
-
-            // if ( strpos( $screen->id, 'tools_page_foflog' ) !== false )
-            //     add_action( 'in_admin_header', [ $this, 'subpage_nav' ] );
+            if ( strpos( $screen->id, 'tools_page_foflog' ) !== false )
+                add_action( 'in_admin_header', [ $this, 'subpage_nav' ] );
         }
 
         public function hook_register_settings_link( $links )
@@ -301,6 +319,14 @@ if ( !class_exists( 'FOFLog' ) )
             $wpdb->query( "DROP TABLE IF EXISTS {$table}" );
         }
 
+        public function hook_delete_fs_logs()
+        {
+            $log_files = glob( FOFLOG_LOG_DIR.'*.log' );
+
+            foreach ( $log_files as $log_file )
+                unlink( $log_file );
+        }
+
         public function hook_log_404_visits()
         {
             if ( !is_404() )
@@ -311,10 +337,10 @@ if ( !class_exists( 'FOFLog' ) )
                 'url'       => $_SERVER['REQUEST_URI'],
             ];
 
-            if ( FOFLOG_USE_FS )
+            if ( $this->use_fs )
                 $this->set_404_visit_in_fs( $data );
 
-            if ( FOFLOG_USE_DB )
+            if ( $this->use_db )
                 $this->set_404_visit_in_db( $data );
         }
 
@@ -328,8 +354,11 @@ if ( !class_exists( 'FOFLog' ) )
             register_activation_hook( FOFLOG_FILE_PATH, [ $this, 'hook_create_db_table' ] );
             // deactivation
             register_deactivation_hook( FOFLOG_FILE_PATH, [ $this, 'hook_empty_db_table' ] );
+            register_deactivation_hook( FOFLOG_FILE_PATH, [ $this, 'hook_delete_fs_logs' ] );
             // uninstall
-            register_uninstall_hook( FOFLOG_FILE_PATH, [ $this, 'hook_delete_db_table' ] );
+            // register_uninstall_hook( FOFLOG_FILE_PATH, [ $this, 'hook_delete_db_table' ] );
+            // register_uninstall_hook( FOFLOG_FILE_PATH, 'hook_delete_db_table' );
+            // register_uninstall_hook( FOFLOG_FILE_PATH, 'hook_delete_fs_logs' );
 
             // register settings page
             add_action( 'admin_menu', [ $this, 'hook_register_settings_page' ] );
