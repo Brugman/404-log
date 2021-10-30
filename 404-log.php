@@ -41,7 +41,12 @@ function save_404_visit_in_fs( $data )
 
 function save_404_visit_in_db( $data )
 {
-    // $data
+    global $wpdb;
+
+    $wpdb->insert(
+        $wpdb->prefix.'foflog_entries',
+        $data
+    );
 }
 
 add_action( 'template_redirect', function () {
@@ -144,6 +149,11 @@ function foflog_get_logs_from_fs()
 
 function foflog_get_logs_from_db()
 {
+    global $wpdb;
+
+    $table = $wpdb->prefix.'foflog_entries';
+
+    return $wpdb->get_results( "SELECT `timestamp`, `url` FROM {$table}", ARRAY_N );
 }
 
 function foflog_empty_db_table()
@@ -185,10 +195,9 @@ function foflog_create_db_table()
 
 register_activation_hook( __FILE__, 'foflog_create_db_table' );
 
-register_deactivation_hook( __FILE__, 'foflog_delete_db_table' );
-// register_deactivation_hook( __FILE__, 'foflog_empty_db_table' );
+register_deactivation_hook( __FILE__, 'foflog_empty_db_table' );
 
-// register_uninstall_hook( __FILE__, 'foflog_delete_db_table' );
+register_uninstall_hook( __FILE__, 'foflog_delete_db_table' );
 
 function foflog_textdomain()
 {
