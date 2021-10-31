@@ -66,6 +66,15 @@ if ( !class_exists( 'FOFLog' ) )
             return admin_url( 'tools.php?'.http_build_query( $args ) );
         }
 
+        private function perf_log( $data )
+        {
+            file_put_contents(
+                __DIR__.'/perf.log',
+                $data."\n",
+                FILE_APPEND
+            );
+        }
+
         /**
          * Getters.
          */
@@ -107,6 +116,9 @@ if ( !class_exists( 'FOFLog' ) )
 
         private function set_404_visit_in_fs( $data )
         {
+            // code load timer start
+            $code_load_timer_start = microtime( true );
+
             $data = implode( ',', $data );
 
             file_put_contents(
@@ -114,16 +126,29 @@ if ( !class_exists( 'FOFLog' ) )
                 $data."\n",
                 FILE_APPEND
             );
+
+            // code load timer finish
+            $code_load_timer_finish = microtime( true );
+            // log
+            $this->perf_log( 'storing in fs took '.number_format( $code_load_timer_finish - $code_load_timer_start, 4 ) );
         }
 
         private function set_404_visit_in_db( $data )
         {
+            // code load timer start
+            $code_load_timer_start = microtime( true );
+
             global $wpdb;
 
             $wpdb->insert(
                 $wpdb->prefix.'foflog_entries',
                 $data
             );
+
+            // code load timer finish
+            $code_load_timer_finish = microtime( true );
+            // log
+            $this->perf_log( 'storing in db took '.number_format( $code_load_timer_finish - $code_load_timer_start, 4 ) );
         }
 
         /**
@@ -242,7 +267,7 @@ if ( !class_exists( 'FOFLog' ) )
 
 <div style="display: grid; grid-template-columns: auto auto;">
     <div>
-        <h2><?php _e( 'File logs', $this->textdomain() ); ?></h2>
+        <h2><?php _e( 'FS logs', $this->textdomain() ); ?></h2>
         <?php $this->display_log( $this->get_logs_from_fs() ); ?>
     </div>
     <div>
