@@ -169,6 +169,14 @@ if ( !class_exists( 'FOFLog' ) )
 <?php
         }
 
+        private function page_return()
+        {
+            $return_link = $_SERVER['HTTP_REFERER'] ?? $this->admin_url();
+
+            echo '<p>'.__( 'Done!', $this->textdomain() ).'</p>';
+            echo '<p><a href="'.$return_link.'">'.__( 'Return to settings', $this->textdomain() ).'</a>.</p>';
+        }
+
         private function display_log( $log_entries )
         {
 ?>
@@ -234,6 +242,14 @@ if ( !class_exists( 'FOFLog' ) )
         }
 
         /**
+         * GET Actions.
+         */
+
+        /**
+         * POST Save Changes.
+         */
+
+        /**
          * Pages.
          */
 
@@ -241,12 +257,39 @@ if ( !class_exists( 'FOFLog' ) )
         {
             $this->page_header();
 
+            $action  = $_GET['action'] ?? false;
             $subpage = $_GET['subpage'] ?? 'settings';
 
-            if ( $subpage == 'settings' )
-                $this->page_settings();
-            if ( $subpage == 'logs' )
-                $this->page_logs();
+            if ( $action )
+            {
+                switch ( $action )
+                {
+                    case 'clear_all_logs':
+                        $this->hook_delete_fs_logs();
+                        $this->hook_empty_db_table();
+                        break;
+                    case 'clear_fs_logs':
+                        $this->hook_delete_fs_logs();
+                        break;
+                    case 'clear_db_logs':
+                        $this->hook_empty_db_table();
+                        break;
+                }
+
+                $this->page_return();
+            }
+            else
+            {
+                switch ( $subpage )
+                {
+                    case 'settings':
+                        $this->page_settings();
+                        break;
+                    case 'logs':
+                        $this->page_logs();
+                        break;
+                }
+            }
 
             $this->page_footer();
         }
@@ -257,6 +300,11 @@ if ( !class_exists( 'FOFLog' ) )
 <h1><?php _e( 'Settings', $this->textdomain() ); ?></h1>
 
 <p>¯\_(ツ)_/¯</p>
+
+<h2>Clear logs</h2>
+<p><a href="<?=$this->admin_url( [ 'subpage' => 'settings', 'action' => 'clear_all_logs' ] );?>" class="button">Clear all logs</a></p>
+<p><a href="<?=$this->admin_url( [ 'subpage' => 'settings', 'action' => 'clear_fs_logs' ] );?>" class="button">Clear FS logs</a></p>
+<p><a href="<?=$this->admin_url( [ 'subpage' => 'settings', 'action' => 'clear_db_logs' ] );?>" class="button">Clear DB logs</a></p>
 <?php
         }
 
