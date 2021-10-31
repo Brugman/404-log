@@ -310,15 +310,6 @@ if ( !class_exists( 'FOFLog' ) )
             $wpdb->query( "TRUNCATE TABLE {$table}" );
         }
 
-        public function hook_delete_db_table()
-        {
-            global $wpdb;
-
-            $table = $wpdb->prefix.'foflog_entries';
-
-            $wpdb->query( "DROP TABLE IF EXISTS {$table}" );
-        }
-
         public function hook_delete_fs_logs()
         {
             $log_files = glob( FOFLOG_LOG_DIR.'*.log' );
@@ -356,9 +347,7 @@ if ( !class_exists( 'FOFLog' ) )
             register_deactivation_hook( FOFLOG_FILE_PATH, [ $this, 'hook_empty_db_table' ] );
             register_deactivation_hook( FOFLOG_FILE_PATH, [ $this, 'hook_delete_fs_logs' ] );
             // uninstall
-            // register_uninstall_hook( FOFLOG_FILE_PATH, [ $this, 'hook_delete_db_table' ] );
-            // register_uninstall_hook( FOFLOG_FILE_PATH, 'hook_delete_db_table' );
-            // register_uninstall_hook( FOFLOG_FILE_PATH, 'hook_delete_fs_logs' );
+            // see uninstall.php
 
             // register settings page
             add_action( 'admin_menu', [ $this, 'hook_register_settings_page' ] );
