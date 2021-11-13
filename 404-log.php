@@ -22,8 +22,55 @@ if ( !class_exists( 'FOFLog' ) )
 {
     class FOFLog
     {
-        private $use_fs = true;
-        private $use_db = true;
+        /**
+         * ???.
+         */
+
+        private function create_settings()
+        {
+            if ( !get_option( 'foflog_settings' ) )
+                add_option( 'foflog_settings', [] );
+        }
+
+        private function create_db_table()
+        {
+            global $wpdb;
+
+            $table   = $wpdb->prefix.'foflog_entries';
+            $charset = $wpdb->get_charset_collate();
+
+            // if the table already exists, abort
+            if ( $wpdb->get_var( "SHOW TABLES LIKE '{$table}'" ) == $table )
+                return;
+
+            $sql = "CREATE TABLE $table (
+                id mediumint(9) NOT NULL AUTO_INCREMENT,
+                timestamp varchar(255) NOT NULL,
+                url varchar(255) NOT NULL,
+                PRIMARY KEY (id)
+            ) $charset;";
+
+            require_once( ABSPATH.'wp-admin/includes/upgrade.php' );
+
+            dbDelta( $sql );
+        }
+
+        private function empty_db_table()
+        {
+            global $wpdb;
+
+            $table = $wpdb->prefix.'foflog_entries';
+
+            $wpdb->query( "TRUNCATE TABLE {$table}" );
+        }
+
+        private function delete_fs_logs()
+        {
+            $log_files = glob( FOFLOG_LOG_DIR.'*.log' );
+
+            foreach ( $log_files as $log_file )
+                unlink( $log_file );
+        }
 
         /**
          * Constructor.
@@ -76,8 +123,45 @@ if ( !class_exists( 'FOFLog' ) )
         }
 
         /**
+         * HTML.
+         */
+
+        private function html_checkbox( $key = false, $value = false, $label = '', $info = false )
+        {
+            $info_html = ( !$info ? '' : '<span class="dashicons dashicons-info-outline" style="font-size: 1rem;" title="'.htmlentities( $info ).'"></span>' );
+?>
+    <div class="checkbox">
+        <label for="label-<?=$key;?>" title="<?=$label;?>">
+            <input type="checkbox" name="<?=$key;?>" id="label-<?=$key;?>" value="<?=$value;?>" <?=( !$value ?: 'checked' );?>>
+            <?=$label;?>
+        </label>
+        <?=$info_html;?>
+    </div>
+<?php
+        }
+
+        /**
          * Getters.
          */
+
+        private function get_settings()
+        {
+            return get_option( 'foflog_settings' );
+        }
+
+        private function get_setting_use_fs()
+        {
+            $settings = $this->get_settings();
+
+            return $settings['use_fs'] ?? false;
+        }
+
+        private function get_setting_use_db()
+        {
+            $settings = $this->get_settings();
+
+            return $settings['use_db'] ?? false;
+        }
 
         private function get_logs_from_fs()
         {
@@ -114,10 +198,15 @@ if ( !class_exists( 'FOFLog' ) )
          * Setters.
          */
 
+        private function set_settings( $settings = [] )
+        {
+            update_option( 'foflog_settings', $settings );
+        }
+
         private function set_404_visit_in_fs( $data )
         {
             // code load timer start
-            $code_load_timer_start = microtime( true );
+            // $code_load_timer_start = microtime( true );
 
             $data = implode( ',', $data );
 
@@ -128,15 +217,15 @@ if ( !class_exists( 'FOFLog' ) )
             );
 
             // code load timer finish
-            $code_load_timer_finish = microtime( true );
+            // $code_load_timer_finish = microtime( true );
             // log
-            $this->perf_log( 'storing in fs took '.number_format( $code_load_timer_finish - $code_load_timer_start, 4 ) );
+            // $this->perf_log( 'storing in fs took '.number_format( $code_load_timer_finish - $code_load_timer_start, 4 ) );
         }
 
         private function set_404_visit_in_db( $data )
         {
             // code load timer start
-            $code_load_timer_start = microtime( true );
+            // $code_load_timer_start = microtime( true );
 
             global $wpdb;
 
@@ -146,9 +235,9 @@ if ( !class_exists( 'FOFLog' ) )
             );
 
             // code load timer finish
-            $code_load_timer_finish = microtime( true );
+            // $code_load_timer_finish = microtime( true );
             // log
-            $this->perf_log( 'storing in db took '.number_format( $code_load_timer_finish - $code_load_timer_start, 4 ) );
+            // $this->perf_log( 'storing in db took '.number_format( $code_load_timer_finish - $code_load_timer_start, 4 ) );
         }
 
         /**
@@ -249,6 +338,19 @@ if ( !class_exists( 'FOFLog' ) )
          * POST Save Changes.
          */
 
+        private function post_save_settings()
+        {
+            if ( !isset( $_POST['save-settings'] ) )
+                return;
+
+            $settings = $this->get_settings();
+
+            $settings['use_fs'] = (bool)isset( $_POST['use_fs'] );
+            $settings['use_db'] = (bool)isset( $_POST['use_db'] );
+
+            $this->set_settings( $settings );
+        }
+
         /**
          * Pages.
          */
@@ -265,14 +367,14 @@ if ( !class_exists( 'FOFLog' ) )
                 switch ( $action )
                 {
                     case 'clear_all_logs':
-                        $this->hook_delete_fs_logs();
-                        $this->hook_empty_db_table();
+                        $this->delete_fs_logs();
+                        $this->empty_db_table();
                         break;
                     case 'clear_fs_logs':
-                        $this->hook_delete_fs_logs();
+                        $this->delete_fs_logs();
                         break;
                     case 'clear_db_logs':
-                        $this->hook_empty_db_table();
+                        $this->empty_db_table();
                         break;
                 }
 
@@ -296,10 +398,40 @@ if ( !class_exists( 'FOFLog' ) )
 
         private function page_settings()
         {
+            $this->post_save_settings();
 ?>
 <h1><?php _e( 'Settings', $this->textdomain() ); ?></h1>
 
-<p>¯\_(ツ)_/¯</p>
+<form method="post">
+
+<?php
+            $this->html_checkbox(
+                'use_fs',
+                $this->get_setting_use_fs(),
+                'Save 404 hits in files.',
+                'Info.'
+            );
+
+            $this->html_checkbox(
+                'use_db',
+                $this->get_setting_use_db(),
+                'Save 404 hits in the database.',
+                'Info.'
+            );
+?>
+
+    <p><button type="submit" class="button button-primary" name="save-settings" value="1">Save Changes</button></p>
+
+</form>
+
+<?php if ( isset( $_POST['save-settings'] ) ): ?>
+<p class="save-settings-feedback">Settings saved.</p>
+<script>
+(function($) {
+    $('.save-settings-feedback').delay(3000).fadeOut();
+})( jQuery );
+</script>
+<?php endif; // isset save-settings ?>
 
 <h2>Clear logs</h2>
 <p><a href="<?=$this->admin_url( [ 'subpage' => 'settings', 'action' => 'clear_all_logs' ] );?>" class="button">Clear all logs</a></p>
@@ -330,6 +462,19 @@ if ( !class_exists( 'FOFLog' ) )
          * Hooks.
          */
 
+        public function hook_activation()
+        {
+            $this->create_settings();
+            $this->create_db_table();
+        }
+
+        public function hook_deactivation()
+        {
+            // Deactivation should not change the state of the plugin.
+            // $this->delete_fs_logs();
+            // $this->empty_db_table();
+        }
+
         public function hook_register_settings_page()
         {
             add_management_page(
@@ -355,42 +500,6 @@ if ( !class_exists( 'FOFLog' ) )
             return $links;
         }
 
-        public function hook_create_db_table()
-        {
-            global $wpdb;
-
-            $table   = $wpdb->prefix.'foflog_entries';
-            $charset = $wpdb->get_charset_collate();
-
-            $sql = "CREATE TABLE $table (
-                id mediumint(9) NOT NULL AUTO_INCREMENT,
-                timestamp varchar(255) NOT NULL,
-                url varchar(255) NOT NULL,
-                PRIMARY KEY (id)
-            ) $charset;";
-
-            require_once( ABSPATH.'wp-admin/includes/upgrade.php' );
-
-            dbDelta( $sql );
-        }
-
-        public function hook_empty_db_table()
-        {
-            global $wpdb;
-
-            $table = $wpdb->prefix.'foflog_entries';
-
-            $wpdb->query( "TRUNCATE TABLE {$table}" );
-        }
-
-        public function hook_delete_fs_logs()
-        {
-            $log_files = glob( FOFLOG_LOG_DIR.'*.log' );
-
-            foreach ( $log_files as $log_file )
-                unlink( $log_file );
-        }
-
         public function hook_log_404_visits()
         {
             if ( !is_404() )
@@ -401,10 +510,10 @@ if ( !class_exists( 'FOFLog' ) )
                 'url'       => $_SERVER['REQUEST_URI'],
             ];
 
-            if ( $this->use_fs )
+            if ( $this->get_setting_use_fs() )
                 $this->set_404_visit_in_fs( $data );
 
-            if ( $this->use_db )
+            if ( $this->get_setting_use_db() )
                 $this->set_404_visit_in_db( $data );
         }
 
@@ -415,10 +524,9 @@ if ( !class_exists( 'FOFLog' ) )
         public function register_hooks()
         {
             // activation
-            register_activation_hook( FOFLOG_FILE_PATH, [ $this, 'hook_create_db_table' ] );
+            register_activation_hook( FOFLOG_FILE_PATH, [ $this, 'hook_activation' ] );
             // deactivation
-            register_deactivation_hook( FOFLOG_FILE_PATH, [ $this, 'hook_empty_db_table' ] );
-            register_deactivation_hook( FOFLOG_FILE_PATH, [ $this, 'hook_delete_fs_logs' ] );
+            register_deactivation_hook( FOFLOG_FILE_PATH, [ $this, 'hook_deactivation' ] );
             // uninstall
             // see uninstall.php
 
