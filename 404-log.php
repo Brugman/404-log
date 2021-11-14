@@ -66,10 +66,57 @@ if ( !class_exists( 'FOFLog' ) )
 
         private function delete_fs_logs()
         {
-            $log_files = glob( FOFLOG_LOG_DIR.'*.log' );
+            $log_files = $this->get_fs_log_files();
 
             foreach ( $log_files as $log_file )
                 unlink( $log_file );
+        }
+
+        private function delete_logs_except( $days )
+        {
+            if ( $this->get_setting_use_fs() )
+                $this->delete_fs_logs_except( $days );
+
+            if ( $this->get_setting_use_db() )
+                $this->delete_db_logs_except( $days );
+        }
+
+        private function delete_fs_logs_except( $days )
+        {
+            $seconds = 60 * 60 * 24 * $days;
+            // $seconds = $days;
+
+            $boundary_timestamp = time() - $seconds;
+            $boundary_string = wp_date( 'Y-m-d', $boundary_timestamp ).'.log';
+
+            $log_files = $this->get_fs_log_files();
+
+            foreach ( $log_files as $log_file )
+            {
+                if ( $boundary_string > basename( $log_file ) )
+                {
+                    // $this->d( basename( $log_file ).': deleting' );
+                    unlink( $log_file );
+                }
+                else
+                {
+                    // $this->d( basename( $log_file ).': not deleting' );
+                }
+            }
+        }
+
+        private function delete_db_logs_except( $days )
+        {
+            $seconds = 60 * 60 * 24 * $days;
+            // $seconds = $days;
+
+            $boundary_timestamp = time() - $seconds;
+
+            global $wpdb;
+
+            $table = $wpdb->prefix.'foflog_entries';
+
+            $wpdb->query( "DELETE FROM {$table} WHERE `timestamp` < '{$boundary_timestamp}'" );
         }
 
         /**
@@ -163,10 +210,15 @@ if ( !class_exists( 'FOFLog' ) )
             return $settings['use_db'] ?? false;
         }
 
+        private function get_fs_log_files()
+        {
+            return glob( FOFLOG_LOG_DIR.'*.log' );
+        }
+
         private function get_logs_from_fs()
         {
             $log_lines = '';
-            $log_files = glob( FOFLOG_LOG_DIR.'*.log' );
+            $log_files = $this->get_fs_log_files();
 
             foreach ( $log_files as $log_file )
                 $log_lines .= file_get_contents( $log_file );
@@ -470,6 +522,8 @@ if ( !class_exists( 'FOFLog' ) )
 
         public function hook_deactivation()
         {
+            $this->cron_1_unschedule_task();
+
             // Deactivation should not change the state of the plugin.
             // $this->delete_fs_logs();
             // $this->empty_db_table();
@@ -518,6 +572,33 @@ if ( !class_exists( 'FOFLog' ) )
         }
 
         /**
+         * Crons.
+         */
+
+        public function cron_1_task()
+        {
+            // $days = $this->get_setting_foo();
+            $days = 1;
+
+            if ( $days == 0 )
+                return;
+
+            $this->delete_logs_except( $days );
+        }
+
+        public function cron_1_schedule_task()
+        {
+            if ( !wp_next_scheduled( 'foflog_cron_1' ) )
+                wp_schedule_event( time(), 'daily', 'foflog_cron_1' );
+        }
+
+        private function cron_1_unschedule_task()
+        {
+            $timestamp = wp_next_scheduled( 'foflog_cron_1' );
+            wp_unschedule_event( $timestamp, 'foflog_cron_1' );
+        }
+
+        /**
          * Register Hooks.
          */
 
@@ -536,6 +617,10 @@ if ( !class_exists( 'FOFLog' ) )
             add_action( 'current_screen', [ $this, 'hook_register_subpage_nav' ] );
             // register settings link
             add_filter( 'plugin_action_links_'.FOFLOG_DIR.'/'.FOFLOG_FILE, [ $this, 'hook_register_settings_link' ] );
+
+            // cron
+            add_action( 'foflog_cron_1', [ $this, 'cron_1_task' ] );
+            add_action( 'wp', [ $this, 'cron_1_schedule_task' ] );
 
             // log 404 visits
             add_action( 'template_redirect', [ $this, 'hook_log_404_visits' ] );
