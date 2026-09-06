@@ -1,4 +1,1 @@
-logs/*.log
-notes/
 *.sublime-*
-perf.log

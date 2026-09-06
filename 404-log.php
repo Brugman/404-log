@@ -22,9 +22,7 @@ if ( !class_exists( 'FOFLog' ) )
 {
     class FOFLog
     {
-        /**
-         * ???.
-         */
+        // > Unsorted.
 
         private function create_settings()
         {
@@ -32,7 +30,7 @@ if ( !class_exists( 'FOFLog' ) )
                 add_option( 'foflog_settings', [] );
         }
 
-        private function create_db_table()
+        private function create_tables()
         {
             global $wpdb;
 
@@ -55,7 +53,7 @@ if ( !class_exists( 'FOFLog' ) )
             dbDelta( $sql );
         }
 
-        private function empty_db_table()
+        private function empty_log_entries()
         {
             global $wpdb;
 
@@ -64,48 +62,7 @@ if ( !class_exists( 'FOFLog' ) )
             $wpdb->query( "TRUNCATE TABLE {$table}" );
         }
 
-        private function delete_fs_logs()
-        {
-            $log_files = $this->get_fs_log_files();
-
-            foreach ( $log_files as $log_file )
-                unlink( $log_file );
-        }
-
         private function delete_logs_except( $days )
-        {
-            if ( $this->get_setting_use_fs() )
-                $this->delete_fs_logs_except( $days );
-
-            if ( $this->get_setting_use_db() )
-                $this->delete_db_logs_except( $days );
-        }
-
-        private function delete_fs_logs_except( $days )
-        {
-            $seconds = 60 * 60 * 24 * $days;
-            // $seconds = $days;
-
-            $boundary_timestamp = time() - $seconds;
-            $boundary_string = wp_date( 'Y-m-d', $boundary_timestamp ).'.log';
-
-            $log_files = $this->get_fs_log_files();
-
-            foreach ( $log_files as $log_file )
-            {
-                if ( $boundary_string > basename( $log_file ) )
-                {
-                    // $this->d( basename( $log_file ).': deleting' );
-                    unlink( $log_file );
-                }
-                else
-                {
-                    // $this->d( basename( $log_file ).': not deleting' );
-                }
-            }
-        }
-
-        private function delete_db_logs_except( $days )
         {
             $seconds = 60 * 60 * 24 * $days;
             // $seconds = $days;
@@ -119,17 +76,13 @@ if ( !class_exists( 'FOFLog' ) )
             $wpdb->query( "DELETE FROM {$table} WHERE `timestamp` < '{$boundary_timestamp}'" );
         }
 
-        /**
-         * Constructor.
-         */
+        // > Constructor.
 
         public function __construct()
         {
         }
 
-        /**
-         * Debug.
-         */
+        // > Debug.
 
         private function d( $var = false )
         {
@@ -144,9 +97,7 @@ if ( !class_exists( 'FOFLog' ) )
             exit;
         }
 
-        /**
-         * Helpers.
-         */
+        // > Helpers.
 
         private function textdomain()
         {
@@ -160,18 +111,7 @@ if ( !class_exists( 'FOFLog' ) )
             return admin_url( 'tools.php?'.http_build_query( $args ) );
         }
 
-        private function perf_log( $data )
-        {
-            file_put_contents(
-                __DIR__.'/perf.log',
-                $data."\n",
-                FILE_APPEND
-            );
-        }
-
-        /**
-         * HTML.
-         */
+        // > HTML.
 
         private function html_checkbox( $key = false, $value = false, $label = '', $info = false )
         {
@@ -187,57 +127,14 @@ if ( !class_exists( 'FOFLog' ) )
 <?php
         }
 
-        /**
-         * Getters.
-         */
+        // > Getters.
 
         private function get_settings()
         {
             return get_option( 'foflog_settings' );
         }
 
-        private function get_setting_use_fs()
-        {
-            $settings = $this->get_settings();
-
-            return $settings['use_fs'] ?? false;
-        }
-
-        private function get_setting_use_db()
-        {
-            $settings = $this->get_settings();
-
-            return $settings['use_db'] ?? false;
-        }
-
-        private function get_fs_log_files()
-        {
-            return glob( FOFLOG_LOG_DIR.'*.log' );
-        }
-
-        private function get_logs_from_fs()
-        {
-            $log_lines = '';
-            $log_files = $this->get_fs_log_files();
-
-            foreach ( $log_files as $log_file )
-                $log_lines .= file_get_contents( $log_file );
-
-            $log_lines = trim( $log_lines );
-
-            if ( $log_lines == '' )
-                return [];
-
-            $log_entries = [];
-
-            $lines = explode( "\n", $log_lines );
-            foreach ( $lines as $line )
-                $log_entries[] = explode( ',', $line );
-
-            return $log_entries;
-        }
-
-        private function get_logs_from_db()
+        private function get_logs()
         {
             global $wpdb;
 
@@ -246,55 +143,24 @@ if ( !class_exists( 'FOFLog' ) )
             return $wpdb->get_results( "SELECT `timestamp`, `url` FROM {$table}", ARRAY_N );
         }
 
-        /**
-         * Setters.
-         */
+        // > Setters.
 
         private function set_settings( $settings = [] )
         {
             update_option( 'foflog_settings', $settings );
         }
 
-        private function set_404_visit_in_fs( $data )
+        private function set_404_visit( $data )
         {
-            // code load timer start
-            // $code_load_timer_start = microtime( true );
-
-            $data = implode( ',', $data );
-
-            file_put_contents(
-                FOFLOG_LOG_DIR.wp_date('Y-m-d').'.log',
-                $data."\n",
-                FILE_APPEND
-            );
-
-            // code load timer finish
-            // $code_load_timer_finish = microtime( true );
-            // log
-            // $this->perf_log( 'storing in fs took '.number_format( $code_load_timer_finish - $code_load_timer_start, 4 ) );
-        }
-
-        private function set_404_visit_in_db( $data )
-        {
-            // code load timer start
-            // $code_load_timer_start = microtime( true );
-
             global $wpdb;
 
             $wpdb->insert(
                 $wpdb->prefix.'foflog_entries',
                 $data
             );
-
-            // code load timer finish
-            // $code_load_timer_finish = microtime( true );
-            // log
-            // $this->perf_log( 'storing in db took '.number_format( $code_load_timer_finish - $code_load_timer_start, 4 ) );
         }
 
-        /**
-         * Page Helpers.
-         */
+        // > Page Helpers.
 
         private function page_header()
         {
@@ -344,9 +210,7 @@ if ( !class_exists( 'FOFLog' ) )
 <?php
         }
 
-        /**
-         * Nav.
-         */
+        // > Nav.
 
         public function subpage_nav()
         {
@@ -361,9 +225,6 @@ if ( !class_exists( 'FOFLog' ) )
                 ],
             ];
 ?>
-<?php /* code disabled
-<link rel="stylesheet" href="<?=plugins_url( 'your-plugin.min.css', FOFLOG_FILE_PATH );?>" />
-*/ ?>
 <style>
 .foflog-acf-admin-toolbar{background:#fff;border-bottom:1px solid #ccd0d4}.foflog-acf-admin-toolbar h2{font-size:14px;line-height:2.57143;display:inline-block;padding:5px 0;margin:0 10px 0 0}.foflog-acf-admin-toolbar h2 i{vertical-align:middle;color:#babbbc}.foflog-acf-admin-toolbar .foflog-acf-tab{display:inline-block;font-size:14px;line-height:2.57143;padding:5px;margin:0 5px;text-decoration:none;color:inherit}.foflog-acf-admin-toolbar .foflog-acf-tab.is-active{border-bottom:#0071a4 solid 3px;padding-bottom:2px}.foflog-acf-admin-toolbar .foflog-acf-tab:hover{color:#00a0d2}.foflog-acf-admin-toolbar .foflog-acf-tab:focus{box-shadow:none}#wpcontent .foflog-acf-admin-toolbar{margin-left:-20px;padding-left:20px}@media screen and (max-width:600px){.foflog-acf-admin-toolbar{display:none}}
 </style>
@@ -382,13 +243,9 @@ if ( !class_exists( 'FOFLog' ) )
 <?php
         }
 
-        /**
-         * GET Actions.
-         */
+        // > GET Actions.
 
-        /**
-         * POST Save Changes.
-         */
+        // > POST Save Changes.
 
         private function post_save_settings()
         {
@@ -397,15 +254,12 @@ if ( !class_exists( 'FOFLog' ) )
 
             $settings = $this->get_settings();
 
-            $settings['use_fs'] = (bool)isset( $_POST['use_fs'] );
-            $settings['use_db'] = (bool)isset( $_POST['use_db'] );
+            // $settings['use_db'] = (bool)isset( $_POST['use_db'] );
 
             $this->set_settings( $settings );
         }
 
-        /**
-         * Pages.
-         */
+        // > Pages.
 
         public function page_controller()
         {
@@ -418,15 +272,8 @@ if ( !class_exists( 'FOFLog' ) )
             {
                 switch ( $action )
                 {
-                    case 'clear_all_logs':
-                        $this->delete_fs_logs();
-                        $this->empty_db_table();
-                        break;
-                    case 'clear_fs_logs':
-                        $this->delete_fs_logs();
-                        break;
-                    case 'clear_db_logs':
-                        $this->empty_db_table();
+                    case 'clear_logs':
+                        $this->empty_log_entries();
                         break;
                 }
 
@@ -457,19 +304,12 @@ if ( !class_exists( 'FOFLog' ) )
 <form method="post">
 
 <?php
-            $this->html_checkbox(
-                'use_fs',
-                $this->get_setting_use_fs(),
-                'Save 404 hits in files.',
-                'Info.'
-            );
-
-            $this->html_checkbox(
-                'use_db',
-                $this->get_setting_use_db(),
-                'Save 404 hits in the database.',
-                'Info.'
-            );
+            // $this->html_checkbox(
+            //     'use_db',
+            //     true,
+            //     'Save 404 hits in the database.',
+            //     'Info.'
+            // );
 ?>
 
     <p><button type="submit" class="button button-primary" name="save-settings" value="1">Save Changes</button></p>
@@ -486,9 +326,7 @@ if ( !class_exists( 'FOFLog' ) )
 <?php endif; // isset save-settings ?>
 
 <h2>Clear logs</h2>
-<p><a href="<?=$this->admin_url( [ 'subpage' => 'settings', 'action' => 'clear_all_logs' ] );?>" class="button">Clear all logs</a></p>
-<p><a href="<?=$this->admin_url( [ 'subpage' => 'settings', 'action' => 'clear_fs_logs' ] );?>" class="button">Clear FS logs</a></p>
-<p><a href="<?=$this->admin_url( [ 'subpage' => 'settings', 'action' => 'clear_db_logs' ] );?>" class="button">Clear DB logs</a></p>
+<p><a href="<?=$this->admin_url( [ 'subpage' => 'settings', 'action' => 'clear_logs' ] );?>" class="button">Clear DB logs</a></p>
 <?php
         }
 
@@ -497,27 +335,16 @@ if ( !class_exists( 'FOFLog' ) )
 ?>
 <h1><?php _e( 'Logs', $this->textdomain() ); ?></h1>
 
-<div style="display: grid; grid-template-columns: auto auto;">
-    <div>
-        <h2><?php _e( 'FS logs', $this->textdomain() ); ?></h2>
-        <?php $this->display_log( $this->get_logs_from_fs() ); ?>
-    </div>
-    <div>
-        <h2><?php _e( 'DB logs', $this->textdomain() ); ?></h2>
-        <?php $this->display_log( $this->get_logs_from_db() ); ?>
-    </div>
-</div>
+<?php $this->display_log( $this->get_logs() ); ?>
 <?php
         }
 
-        /**
-         * Hooks.
-         */
+        // > Hooks.
 
         public function hook_activation()
         {
             $this->create_settings();
-            $this->create_db_table();
+            $this->create_tables();
         }
 
         public function hook_deactivation()
@@ -525,8 +352,7 @@ if ( !class_exists( 'FOFLog' ) )
             $this->cron_1_unschedule_task();
 
             // Deactivation should not change the state of the plugin.
-            // $this->delete_fs_logs();
-            // $this->empty_db_table();
+            // $this->empty_log_entries();
         }
 
         public function hook_register_settings_page()
@@ -564,16 +390,10 @@ if ( !class_exists( 'FOFLog' ) )
                 'url'       => $_SERVER['REQUEST_URI'],
             ];
 
-            if ( $this->get_setting_use_fs() )
-                $this->set_404_visit_in_fs( $data );
-
-            if ( $this->get_setting_use_db() )
-                $this->set_404_visit_in_db( $data );
+            $this->set_404_visit( $data );
         }
 
-        /**
-         * Crons.
-         */
+        // > Crons.
 
         public function cron_1_task()
         {
@@ -598,9 +418,7 @@ if ( !class_exists( 'FOFLog' ) )
             wp_unschedule_event( $timestamp, 'foflog_cron_1' );
         }
 
-        /**
-         * Register Hooks.
-         */
+        // > Register Hooks.
 
         public function register_hooks()
         {
@@ -623,13 +441,11 @@ if ( !class_exists( 'FOFLog' ) )
             add_action( 'wp', [ $this, 'cron_1_schedule_task' ] );
 
             // log 404 visits
-            add_action( 'template_redirect', [ $this, 'hook_log_404_visits' ] );
+            add_action( 'template_redirect', [ $this, 'hook_log_404_visits' ], 1 );
         }
     }
 
-    /**
-     * Instantiate.
-     */
+    // > Instantiate.
 
     $foflog = new FOFLog();
     $foflog->register_hooks();
