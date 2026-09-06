@@ -60,7 +60,7 @@ if ( !class_exists( 'FOFLog' ) )
             dbDelta( $sql );
         }
 
-        private function clear_url_stats()
+        private function clear_all_urls()
         {
             global $wpdb;
 
@@ -69,20 +69,8 @@ if ( !class_exists( 'FOFLog' ) )
             $wpdb->query( "TRUNCATE TABLE {$table}" );
         }
 
-        private function delete_urls_not_hit_for( $days )
+        private function clear_selected_urls()
         {
-            if ( $days == 0 )
-                return;
-
-            $seconds = 60 * 60 * 24 * $days;
-
-            $boundary_timestamp = time() - $seconds;
-
-            global $wpdb;
-
-            $table = $wpdb->prefix.'foflog_urls';
-
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE `last_seen` < %d", $boundary_timestamp ) );
         }
 
         // > Constructor.
@@ -180,7 +168,7 @@ if ( !class_exists( 'FOFLog' ) )
             update_option( 'foflog_settings', $settings );
         }
 
-        private function count_404_hit()
+        private function add_404_url()
         {
             global $wpdb;
 
@@ -322,8 +310,8 @@ if ( !class_exists( 'FOFLog' ) )
             {
                 switch ( $action )
                 {
-                    case 'clear_url_stats':
-                        $this->clear_url_stats();
+                    case 'clear_all_urls':
+                        $this->clear_all_urls();
                         break;
                 }
 
@@ -366,7 +354,7 @@ if ( !class_exists( 'FOFLog' ) )
             $this->html_absint(
                 'retention_days',
                 $settings['retention_days'],
-                __( 'Remove unrevisited 404s after (days)', $this->textdomain() ),
+                __( 'Prune stale 404s after (days)', $this->textdomain() ),
                 __( 'Hits that have not occurred again within this many days are automatically removed. Set to 0 to disable.', $this->textdomain() )
             );
 ?>
@@ -386,8 +374,8 @@ if ( !class_exists( 'FOFLog' ) )
 </script>
 <?php endif; // isset save-settings ?>
 
-<h2>Clear logs</h2>
-<p><a href="<?=$this->plugin_admin_url( [ 'subpage' => 'settings', 'action' => 'clear_url_stats' ] );?>" class="button">Clear logs</a></p>
+<h2>Tools</h2>
+<p><a href="<?=$this->plugin_admin_url( [ 'subpage' => 'settings', 'action' => 'clear_all_urls' ] );?>" class="button">Clear all URLs</a></p>
 <?php
         }
 
@@ -439,7 +427,7 @@ if ( !class_exists( 'FOFLog' ) )
             return $links;
         }
 
-        public function hook_maybe_count_hit()
+        public function hook_maybe_add_404_url()
         {
             if ( !is_404() )
                 return;
@@ -447,25 +435,38 @@ if ( !class_exists( 'FOFLog' ) )
             if ( is_user_logged_in() && !$this->get_settings()['track_users'] )
                 return;
 
-            $this->count_404_hit();
+            $this->add_404_url();
         }
 
         // > Crons.
 
-        public function cron_clear_old_stats()
+        public function cron_prune_stale_urls()
         {
-            $this->delete_urls_not_hit_for( $this->get_settings()['retention_days'] );
+            $days = $this->get_settings()['retention_days'];
+
+            if ( $days == 0 )
+                return;
+
+            $seconds = 60 * 60 * 24 * $days;
+
+            $boundary_timestamp = time() - $seconds;
+
+            global $wpdb;
+
+            $table = $wpdb->prefix.'foflog_urls';
+
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE `last_seen` < %d", $boundary_timestamp ) );
         }
 
         public function cron_schedule_tasks()
         {
-            if ( !wp_next_scheduled( 'foflog_cron_clear_old_stats' ) )
-                wp_schedule_event( time(), 'daily', 'foflog_cron_clear_old_stats' );
+            if ( !wp_next_scheduled( 'foflog_cron_prune_stale_urls' ) )
+                wp_schedule_event( time(), 'daily', 'foflog_cron_prune_stale_urls' );
         }
 
         private function cron_unschedule_tasks()
         {
-            wp_clear_scheduled_hook( 'foflog_cron_clear_old_stats' );
+            wp_clear_scheduled_hook( 'foflog_cron_prune_stale_urls' );
         }
 
         // > Register Hooks.
@@ -483,9 +484,9 @@ if ( !class_exists( 'FOFLog' ) )
             // register settings link
             add_filter( 'plugin_action_links_'.FOFLOG_DIR.'/'.FOFLOG_FILE, [ $this, 'hook_register_settings_link' ] );
             // maybe log hit
-            add_action( 'template_redirect', [ $this, 'hook_maybe_count_hit' ] );
+            add_action( 'template_redirect', [ $this, 'hook_maybe_add_404_url' ] );
             // cron
-            add_action( 'foflog_cron_clear_old_stats', [ $this, 'cron_clear_old_stats' ] );
+            add_action( 'foflog_cron_prune_stale_urls', [ $this, 'cron_prune_stale_urls' ] );
         }
     }
 
