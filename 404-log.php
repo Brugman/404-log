@@ -22,12 +22,12 @@ if ( !class_exists( 'FOFLog' ) )
 {
     class FOFLog
     {
-        // > Unsorted.
-
         private $settings_defaults = [
             'track_users'    => false,
             'retention_days' => 30,
         ];
+
+        // > Unsorted.
 
         private function create_settings()
         {
@@ -70,12 +70,6 @@ if ( !class_exists( 'FOFLog' ) )
         }
 
         private function clear_selected_urls()
-        {
-        }
-
-        // > Constructor.
-
-        public function __construct()
         {
         }
 
@@ -402,7 +396,7 @@ if ( !class_exists( 'FOFLog' ) )
             $this->cron_unschedule_tasks();
         }
 
-        public function hook_register_tools_page()
+        public function register_tools_page()
         {
             add_management_page(
                 __( '404 log', $this->textdomain() ), // page title
@@ -414,20 +408,20 @@ if ( !class_exists( 'FOFLog' ) )
             );
         }
 
-        public function hook_register_subpage_nav( $screen )
+        public function register_subpage_nav( $screen )
         {
             if ( strpos( $screen->id, 'tools_page_foflog' ) !== false )
                 add_action( 'in_admin_header', [ $this, 'subpage_nav' ] );
         }
 
-        public function hook_register_settings_link( $links )
+        public function register_settings_link( $links )
         {
             $links['settings'] = '<a href="'.$this->plugin_admin_url().'">'.__( 'Settings', $this->textdomain() ).'</a>';
 
             return $links;
         }
 
-        public function hook_maybe_add_404_url()
+        public function maybe_add_404_url()
         {
             if ( !is_404() )
                 return;
@@ -478,13 +472,13 @@ if ( !class_exists( 'FOFLog' ) )
             // deactivation
             register_deactivation_hook( FOFLOG_FILE_PATH, [ $this, 'register_deactivation' ] );
             // register tools page
-            add_action( 'admin_menu', [ $this, 'hook_register_tools_page' ] );
+            add_action( 'admin_menu', [ $this, 'register_tools_page' ] );
             // register subpage nav
-            add_action( 'current_screen', [ $this, 'hook_register_subpage_nav' ] );
+            add_action( 'current_screen', [ $this, 'register_subpage_nav' ] );
             // register settings link
-            add_filter( 'plugin_action_links_'.FOFLOG_DIR.'/'.FOFLOG_FILE, [ $this, 'hook_register_settings_link' ] );
+            add_filter( 'plugin_action_links_'.FOFLOG_DIR.'/'.FOFLOG_FILE, [ $this, 'register_settings_link' ] );
             // maybe log hit
-            add_action( 'template_redirect', [ $this, 'hook_maybe_add_404_url' ] );
+            add_action( 'template_redirect', [ $this, 'maybe_add_404_url' ] );
             // cron
             add_action( 'foflog_cron_prune_stale_urls', [ $this, 'cron_prune_stale_urls' ] );
         }
