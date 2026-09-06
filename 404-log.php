@@ -42,11 +42,12 @@ if ( !class_exists( 'FOFLog' ) )
                 return;
 
             $sql = "CREATE TABLE $table (
-                id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-                hit_time bigint(20) unsigned NOT NULL,
                 url varchar(255) NOT NULL,
-                PRIMARY KEY  (id),
-                KEY  hit_time (hit_time)
+                hit_count bigint(20) unsigned NOT NULL,
+                first_seen bigint(20) unsigned NOT NULL,
+                last_seen bigint(20) unsigned NOT NULL,
+                PRIMARY KEY  (url),
+                KEY  last_seen (last_seen)
             ) $charset;";
 
             require_once( ABSPATH.'wp-admin/includes/upgrade.php' );
@@ -74,7 +75,7 @@ if ( !class_exists( 'FOFLog' ) )
 
             $table = $wpdb->prefix.'foflog_entries';
 
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE `hit_time` < %d", $boundary_timestamp ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE `last_seen` < %d", $boundary_timestamp ) );
         }
 
         // > Constructor.
@@ -141,7 +142,12 @@ if ( !class_exists( 'FOFLog' ) )
 
             $table = $wpdb->prefix.'foflog_entries';
 
-            return $wpdb->get_results( "SELECT `hit_time`, `url` FROM {$table}", ARRAY_N );
+            return $wpdb->get_results(
+                "SELECT `url`, `hit_count`, `first_seen`, `last_seen`
+                FROM {$table}
+                ORDER BY `hit_count` DESC, `last_seen` DESC",
+                ARRAY_A
+            );
         }
 
         // > Setters.
@@ -151,15 +157,23 @@ if ( !class_exists( 'FOFLog' ) )
             update_option( 'foflog_settings', $settings );
         }
 
-        private function set_404_visit( $data )
+        private function set_404_visit( $url )
         {
             global $wpdb;
 
-            $wpdb->insert(
-                $wpdb->prefix.'foflog_entries',
-                $data,
-                [ '%d', '%s' ]
-            );
+            $table = $wpdb->prefix.'foflog_entries';
+            $now   = time();
+
+            $wpdb->query( $wpdb->prepare(
+                "INSERT INTO {$table} (`url`, `hit_count`, `first_seen`, `last_seen`)
+                VALUES (%s, 1, %d, %d)
+                ON DUPLICATE KEY UPDATE
+                    `hit_count` = `hit_count` + 1,
+                    `last_seen` = VALUES(`last_seen`)",
+                $url,
+                $now,
+                $now
+            ) );
         }
 
         // > Page Helpers.
@@ -193,15 +207,19 @@ if ( !class_exists( 'FOFLog' ) )
 <table class="wp-list-table widefat fixed striped" style="width: auto; margin-top: 10px;">
     <thead>
         <tr>
-            <td><?php _e( 'Date', $this->textdomain() ); ?></td>
+            <td><?php _e( 'Hits', $this->textdomain() ); ?></td>
             <td><?php _e( 'URL', $this->textdomain() ); ?></td>
+            <td><?php _e( 'First seen', $this->textdomain() ); ?></td>
+            <td><?php _e( 'Last seen', $this->textdomain() ); ?></td>
         </tr>
     </thead>
     <tbody>
 <?php foreach ( $log_entries as $log_entry ): ?>
         <tr>
-            <td><?=wp_date( 'Y-m-d H:i', $log_entry[0] );?></td>
-            <td><?=$log_entry[1];?></td>
+            <td><?=$log_entry['hit_count'];?></td>
+            <td><?=esc_html( $log_entry['url'] );?></td>
+            <td><?=wp_date( 'Y-m-d H:i', $log_entry['first_seen'] );?></td>
+            <td><?=wp_date( 'Y-m-d H:i', $log_entry['last_seen'] );?></td>
         </tr>
 <?php endforeach; // $log_entries ?>
     </tbody>
@@ -387,12 +405,9 @@ if ( !class_exists( 'FOFLog' ) )
             if ( !is_404() )
                 return;
 
-            $data = [
-                'hit_time' => time(),
-                'url'       => $_SERVER['REQUEST_URI'],
-            ];
+            $url = parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH );
 
-            $this->set_404_visit( $data );
+            $this->set_404_visit( $url );
         }
 
         // > Crons.
