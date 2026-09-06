@@ -27,7 +27,7 @@ if ( !class_exists( 'FOFLog' ) )
         private function create_settings()
         {
             if ( !get_option( 'foflog_settings' ) )
-                add_option( 'foflog_settings', [] );
+                add_option( 'foflog_settings', [], '', false );
         }
 
         private function create_tables()
