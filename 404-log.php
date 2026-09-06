@@ -38,14 +38,15 @@ if ( !class_exists( 'FOFLog' ) )
             $charset = $wpdb->get_charset_collate();
 
             // if the table already exists, abort
-            if ( $wpdb->get_var( "SHOW TABLES LIKE '{$table}'" ) == $table )
+            if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) == $table )
                 return;
 
             $sql = "CREATE TABLE $table (
-                id mediumint(9) NOT NULL AUTO_INCREMENT,
-                timestamp varchar(255) NOT NULL,
+                id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+                hit_time bigint(20) unsigned NOT NULL,
                 url varchar(255) NOT NULL,
-                PRIMARY KEY (id)
+                PRIMARY KEY  (id),
+                KEY  hit_time (hit_time)
             ) $charset;";
 
             require_once( ABSPATH.'wp-admin/includes/upgrade.php' );
@@ -64,7 +65,7 @@ if ( !class_exists( 'FOFLog' ) )
 
         private function delete_logs_except( $days )
         {
-            $seconds = 60 * 60 * 24 * $days;
+            $seconds = 60 * 60 * 24 * absint( $days );
             // $seconds = $days;
 
             $boundary_timestamp = time() - $seconds;
@@ -73,7 +74,7 @@ if ( !class_exists( 'FOFLog' ) )
 
             $table = $wpdb->prefix.'foflog_entries';
 
-            $wpdb->query( "DELETE FROM {$table} WHERE `timestamp` < '{$boundary_timestamp}'" );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE `hit_time` < %d", $boundary_timestamp ) );
         }
 
         // > Constructor.
@@ -140,7 +141,7 @@ if ( !class_exists( 'FOFLog' ) )
 
             $table = $wpdb->prefix.'foflog_entries';
 
-            return $wpdb->get_results( "SELECT `timestamp`, `url` FROM {$table}", ARRAY_N );
+            return $wpdb->get_results( "SELECT `hit_time`, `url` FROM {$table}", ARRAY_N );
         }
 
         // > Setters.
@@ -156,7 +157,8 @@ if ( !class_exists( 'FOFLog' ) )
 
             $wpdb->insert(
                 $wpdb->prefix.'foflog_entries',
-                $data
+                $data,
+                [ '%d', '%s' ]
             );
         }
 
@@ -386,7 +388,7 @@ if ( !class_exists( 'FOFLog' ) )
                 return;
 
             $data = [
-                'timestamp' => time(),
+                'hit_time' => time(),
                 'url'       => $_SERVER['REQUEST_URI'],
             ];
 
