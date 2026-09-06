@@ -369,7 +369,7 @@ if ( !class_exists( 'FOFLog' ) )
 
         public function hook_deactivation()
         {
-            $this->cron_1_unschedule_task();
+            // $this->cron_1_unschedule_task();
 
             // Deactivation should not change the state of the plugin.
             // $this->empty_log_entries();
@@ -412,28 +412,28 @@ if ( !class_exists( 'FOFLog' ) )
 
         // > Crons.
 
-        public function cron_1_task()
-        {
-            // $days = $this->get_setting_foo();
-            $days = 1;
+        // public function cron_1_task()
+        // {
+        //     // $days = $this->get_setting_foo();
+        //     $days = 1;
 
-            if ( $days == 0 )
-                return;
+        //     if ( $days == 0 )
+        //         return;
 
-            $this->delete_logs_except( $days );
-        }
+        //     $this->delete_logs_except( $days );
+        // }
 
-        public function cron_1_schedule_task()
-        {
-            if ( !wp_next_scheduled( 'foflog_cron_1' ) )
-                wp_schedule_event( time(), 'daily', 'foflog_cron_1' );
-        }
+        // public function cron_1_schedule_task()
+        // {
+        //     if ( !wp_next_scheduled( 'foflog_cron_1' ) )
+        //         wp_schedule_event( time(), 'daily', 'foflog_cron_1' );
+        // }
 
-        private function cron_1_unschedule_task()
-        {
-            $timestamp = wp_next_scheduled( 'foflog_cron_1' );
-            wp_unschedule_event( $timestamp, 'foflog_cron_1' );
-        }
+        // private function cron_1_unschedule_task()
+        // {
+        //     $timestamp = wp_next_scheduled( 'foflog_cron_1' );
+        //     wp_unschedule_event( $timestamp, 'foflog_cron_1' );
+        // }
 
         // > Register Hooks.
 
@@ -454,8 +454,8 @@ if ( !class_exists( 'FOFLog' ) )
             add_filter( 'plugin_action_links_'.FOFLOG_DIR.'/'.FOFLOG_FILE, [ $this, 'hook_register_settings_link' ] );
 
             // cron
-            add_action( 'foflog_cron_1', [ $this, 'cron_1_task' ] );
-            add_action( 'wp', [ $this, 'cron_1_schedule_task' ] );
+            // add_action( 'foflog_cron_1', [ $this, 'cron_1_task' ] );
+            // add_action( 'wp', [ $this, 'cron_1_schedule_task' ] );
 
             // log 404 visits
             add_action( 'template_redirect', [ $this, 'hook_log_404_visits' ], 1 );
