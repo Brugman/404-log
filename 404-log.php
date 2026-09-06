@@ -25,7 +25,8 @@ if ( !class_exists( 'FOFLog' ) )
         // > Unsorted.
 
         private $settings_defaults = [
-            'track_users' => false,
+            'track_users'    => false,
+            'retention_days' => 30,
         ];
 
         private function create_settings()
@@ -68,18 +69,21 @@ if ( !class_exists( 'FOFLog' ) )
             $wpdb->query( "TRUNCATE TABLE {$table}" );
         }
 
-        // private function delete_urls_not_seen_since( $days )
-        // {
-        //     $seconds = 60 * 60 * 24 * absint( $days );
+        private function delete_urls_not_hit_for( $days )
+        {
+            if ( $days == 0 )
+                return;
 
-        //     $boundary_timestamp = time() - $seconds;
+            $seconds = 60 * 60 * 24 * $days;
 
-        //     global $wpdb;
+            $boundary_timestamp = time() - $seconds;
 
-        //     $table = $wpdb->prefix.'foflog_urls';
+            global $wpdb;
 
-        //     $wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE `last_seen` < %d", $boundary_timestamp ) );
-        // }
+            $table = $wpdb->prefix.'foflog_urls';
+
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE `last_seen` < %d", $boundary_timestamp ) );
+        }
 
         // > Constructor.
 
@@ -126,6 +130,20 @@ if ( !class_exists( 'FOFLog' ) )
         <label for="label-<?=esc_attr( $key );?>" title="<?=esc_attr( $label );?>">
             <input type="checkbox" name="<?=esc_attr( $key );?>" id="label-<?=esc_attr( $key );?>" value="1" <?php checked( $value, true ); ?>>
             <?=esc_html( $label );?>
+        </label>
+        <?=$info_html;?>
+    </div>
+<?php
+        }
+
+        private function html_absint( $key = false, $value = false, $label = '', $info = false )
+        {
+            $info_html = ( !$info ? '' : '<span class="dashicons dashicons-info-outline" style="font-size: 1rem;" title="'.htmlentities( $info ).'"></span>' );
+?>
+    <div class="absint">
+        <label for="label-<?=esc_attr( $key );?>" title="<?=esc_attr( $label );?>">
+            <?=esc_html( $label );?>
+            <input type="number" min="0" step="1" name="<?=esc_attr( $key );?>" id="label-<?=esc_attr( $key );?>" value="<?=esc_attr( absint( $value ) );?>">
         </label>
         <?=$info_html;?>
     </div>
@@ -285,7 +303,8 @@ if ( !class_exists( 'FOFLog' ) )
 
             $settings = $this->get_settings();
 
-            $settings['track_users'] = (bool) isset( $_POST['track_users'] );
+            $settings['track_users']    = (bool) isset( $_POST['track_users'] );
+            $settings['retention_days'] = absint( $_POST['retention_days'] ?? 0 );
 
             $this->set_settings( $settings );
         }
@@ -341,7 +360,14 @@ if ( !class_exists( 'FOFLog' ) )
                 'track_users',
                 $settings['track_users'],
                 __( 'Track hits by logged in users', $this->textdomain() ),
-                __( 'TBD', $this->textdomain() )
+                __( 'Enable if your website is primarily used by logged in users.', $this->textdomain() )
+            );
+
+            $this->html_absint(
+                'retention_days',
+                $settings['retention_days'],
+                __( 'Remove unrevisited 404s after (days)', $this->textdomain() ),
+                __( 'Hits that have not occurred again within this many days are automatically removed. Set to 0 to disable.', $this->textdomain() )
             );
 ?>
 
@@ -376,18 +402,16 @@ if ( !class_exists( 'FOFLog' ) )
 
         // > Hooks.
 
-        public function hook_activation()
+        public function register_activation()
         {
             $this->create_settings();
             $this->create_tables();
+            $this->cron_schedule_tasks();
         }
 
-        public function hook_deactivation()
+        public function register_deactivation()
         {
-            // $this->cron_1_unschedule_task();
-
-            // Deactivation should not change the state of the plugin.
-            // $this->clear_url_stats();
+            $this->cron_unschedule_tasks();
         }
 
         public function hook_register_tools_page()
@@ -428,53 +452,40 @@ if ( !class_exists( 'FOFLog' ) )
 
         // > Crons.
 
-        // public function cron_1_task()
-        // {
-        //     // $days = $this->get_setting_foo();
-        //     $days = 1;
+        public function cron_clear_old_stats()
+        {
+            $this->delete_urls_not_hit_for( $this->get_settings()['retention_days'] );
+        }
 
-        //     if ( $days == 0 )
-        //         return;
+        public function cron_schedule_tasks()
+        {
+            if ( !wp_next_scheduled( 'foflog_cron_clear_old_stats' ) )
+                wp_schedule_event( time(), 'daily', 'foflog_cron_clear_old_stats' );
+        }
 
-        //     $this->delete_urls_not_seen_since( $days );
-        // }
-
-        // public function cron_1_schedule_task()
-        // {
-        //     if ( !wp_next_scheduled( 'foflog_cron_1' ) )
-        //         wp_schedule_event( time(), 'daily', 'foflog_cron_1' );
-        // }
-
-        // private function cron_1_unschedule_task()
-        // {
-        //     $timestamp = wp_next_scheduled( 'foflog_cron_1' );
-        //     wp_unschedule_event( $timestamp, 'foflog_cron_1' );
-        // }
+        private function cron_unschedule_tasks()
+        {
+            wp_clear_scheduled_hook( 'foflog_cron_clear_old_stats' );
+        }
 
         // > Register Hooks.
 
         public function register_hooks()
         {
             // activation
-            register_activation_hook( FOFLOG_FILE_PATH, [ $this, 'hook_activation' ] );
+            register_activation_hook( FOFLOG_FILE_PATH, [ $this, 'register_activation' ] );
             // deactivation
-            register_deactivation_hook( FOFLOG_FILE_PATH, [ $this, 'hook_deactivation' ] );
-            // uninstall
-            // see uninstall.php
-
+            register_deactivation_hook( FOFLOG_FILE_PATH, [ $this, 'register_deactivation' ] );
             // register tools page
             add_action( 'admin_menu', [ $this, 'hook_register_tools_page' ] );
             // register subpage nav
             add_action( 'current_screen', [ $this, 'hook_register_subpage_nav' ] );
             // register settings link
             add_filter( 'plugin_action_links_'.FOFLOG_DIR.'/'.FOFLOG_FILE, [ $this, 'hook_register_settings_link' ] );
-
-            // cron
-            // add_action( 'foflog_cron_1', [ $this, 'cron_1_task' ] );
-            // add_action( 'wp', [ $this, 'cron_1_schedule_task' ] );
-
             // maybe log hit
             add_action( 'template_redirect', [ $this, 'hook_maybe_count_hit' ] );
+            // cron
+            add_action( 'foflog_cron_clear_old_stats', [ $this, 'cron_clear_old_stats' ] );
         }
     }
 
