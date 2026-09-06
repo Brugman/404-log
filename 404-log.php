@@ -16,7 +16,6 @@ if ( !defined( 'ABSPATH' ) )
 define( 'FOFLOG_FILE_PATH', __FILE__ );
 define( 'FOFLOG_FILE', basename( __FILE__ ) );
 define( 'FOFLOG_DIR', basename( __DIR__ ) );
-define( 'FOFLOG_LOG_DIR', __DIR__.'/logs/' );
 
 if ( !class_exists( 'FOFLog' ) )
 {
@@ -245,8 +244,8 @@ if ( !class_exists( 'FOFLog' ) )
                     'link'  => $this->plugin_admin_url( [ 'subpage' => 'settings' ] ),
                 ],
                 [
-                    'title' => __( 'Logs', $this->textdomain() ),
-                    'link'  => $this->plugin_admin_url( [ 'subpage' => 'logs' ] ),
+                    'title' => __( 'Log', $this->textdomain() ),
+                    'link'  => $this->plugin_admin_url( [ 'subpage' => 'log' ] ),
                 ],
             ];
 ?>
@@ -318,8 +317,8 @@ if ( !class_exists( 'FOFLog' ) )
                     case 'settings':
                         $this->page_settings();
                         break;
-                    case 'logs':
-                        $this->page_logs();
+                    case 'log':
+                        $this->page_log();
                         break;
                 }
             }
@@ -356,7 +355,7 @@ if ( !class_exists( 'FOFLog' ) )
                 'delete_plugin_delete_data',
                 $settings['delete_plugin_delete_data'],
                 __( 'Delete all data when the plugin is deleted', $this->textdomain() ),
-                __( 'Uncheck to keep your logs and preferences.', $this->textdomain() )
+                __( 'Uncheck to keep your log table and preferences.', $this->textdomain() )
             );
 ?>
 
@@ -380,10 +379,10 @@ if ( !class_exists( 'FOFLog' ) )
 <?php
         }
 
-        private function page_logs()
+        private function page_log()
         {
 ?>
-<h1><?php _e( 'Logs', $this->textdomain() ); ?></h1>
+<h1><?php _e( 'Log', $this->textdomain() ); ?></h1>
 
 <?php $this->display_url_stats( $this->get_url_stats() ); ?>
 <?php
