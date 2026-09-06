@@ -47,11 +47,13 @@ if ( !class_exists( 'FOFLog' ) )
                 return;
 
             $sql = "CREATE TABLE $table (
+                id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
                 url varchar(255) NOT NULL,
                 hit_count bigint(20) unsigned NOT NULL,
                 first_seen bigint(20) unsigned NOT NULL,
                 last_seen bigint(20) unsigned NOT NULL,
-                PRIMARY KEY  (url),
+                PRIMARY KEY  (id),
+                KEY  url (url),
                 KEY  last_seen (last_seen)
             ) $charset;";
 
