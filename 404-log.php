@@ -156,11 +156,12 @@ if ( !class_exists( 'FOFLog' ) )
             update_option( 'foflog_settings', $settings );
         }
 
-        private function count_404_hit( $url )
+        private function count_404_hit()
         {
             global $wpdb;
 
             $table = $wpdb->prefix.'foflog_urls';
+            $url   = parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH );
             $now   = time();
 
             $wpdb->query( $wpdb->prepare(
@@ -404,9 +405,7 @@ if ( !class_exists( 'FOFLog' ) )
             if ( !is_404() )
                 return;
 
-            $url = parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH );
-
-            $this->count_404_hit( $url );
+            $this->count_404_hit();
         }
 
         // > Crons.
