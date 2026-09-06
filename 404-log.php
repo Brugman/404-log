@@ -24,6 +24,10 @@ if ( !class_exists( 'FOFLog' ) )
     {
         // > Unsorted.
 
+        private $settings_defaults = [
+            'track_users' => false,
+        ];
+
         private function create_settings()
         {
             if ( !get_option( 'foflog_settings' ) )
@@ -119,9 +123,9 @@ if ( !class_exists( 'FOFLog' ) )
             $info_html = ( !$info ? '' : '<span class="dashicons dashicons-info-outline" style="font-size: 1rem;" title="'.htmlentities( $info ).'"></span>' );
 ?>
     <div class="checkbox">
-        <label for="label-<?=$key;?>" title="<?=$label;?>">
-            <input type="checkbox" name="<?=$key;?>" id="label-<?=$key;?>" value="<?=$value;?>" <?=( !$value ?: 'checked' );?>>
-            <?=$label;?>
+        <label for="label-<?=esc_attr( $key );?>" title="<?=esc_attr( $label );?>">
+            <input type="checkbox" name="<?=esc_attr( $key );?>" id="label-<?=esc_attr( $key );?>" value="1" <?php checked( $value, true ); ?>>
+            <?=esc_html( $label );?>
         </label>
         <?=$info_html;?>
     </div>
@@ -132,7 +136,9 @@ if ( !class_exists( 'FOFLog' ) )
 
         private function get_settings()
         {
-            return get_option( 'foflog_settings' );
+            $settings = get_option( 'foflog_settings', [] );
+
+            return wp_parse_args( $settings, $this->settings_defaults );
         }
 
         private function get_url_stats()
@@ -272,9 +278,14 @@ if ( !class_exists( 'FOFLog' ) )
             if ( !isset( $_POST['save-settings'] ) )
                 return;
 
+            check_admin_referer( 'foflog-save-settings' );
+
+            if ( !current_user_can( 'manage_options' ) )
+                return;
+
             $settings = $this->get_settings();
 
-            // $settings['use_db'] = (bool)isset( $_POST['use_db'] );
+            $settings['track_users'] = (bool) isset( $_POST['track_users'] );
 
             $this->set_settings( $settings );
         }
@@ -318,21 +329,25 @@ if ( !class_exists( 'FOFLog' ) )
         private function page_settings()
         {
             $this->post_save_settings();
+
+            $settings = $this->get_settings();
 ?>
 <h1><?php _e( 'Settings', $this->textdomain() ); ?></h1>
 
 <form method="post">
 
 <?php
-            // $this->html_checkbox(
-            //     'use_db',
-            //     true,
-            //     'Save 404 hits in the database.',
-            //     'Info.'
-            // );
+            $this->html_checkbox(
+                'track_users',
+                $settings['track_users'],
+                __( 'Track hits by logged in users', $this->textdomain() ),
+                __( 'TBD', $this->textdomain() )
+            );
 ?>
 
-    <p><button type="submit" class="button button-primary" name="save-settings" value="1">Save Changes</button></p>
+    <p><button type="submit" class="button button-primary" name="save-settings" value="1"><?php _e( 'Save Changes', $this->textdomain() ); ?></button></p>
+
+    <input type="hidden" name="_wpnonce" value="<?=wp_create_nonce( 'foflog-save-settings' );?>">
 
 </form>
 
@@ -403,6 +418,9 @@ if ( !class_exists( 'FOFLog' ) )
         public function hook_maybe_count_hit()
         {
             if ( !is_404() )
+                return;
+
+            if ( is_user_logged_in() && !$this->get_settings()['track_users'] )
                 return;
 
             $this->count_404_hit();
