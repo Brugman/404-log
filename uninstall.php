@@ -9,7 +9,7 @@ if ( !defined( 'WP_UNINSTALL_PLUGIN' ) )
 
 global $wpdb;
 
-$table = $wpdb->prefix.'foflog_entries';
+$table = $wpdb->prefix.'foflog_urls';
 
 $wpdb->query( "DROP TABLE IF EXISTS {$table}" );
 

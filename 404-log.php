@@ -34,7 +34,7 @@ if ( !class_exists( 'FOFLog' ) )
         {
             global $wpdb;
 
-            $table   = $wpdb->prefix.'foflog_entries';
+            $table   = $wpdb->prefix.'foflog_urls';
             $charset = $wpdb->get_charset_collate();
 
             // if the table already exists, abort
@@ -55,28 +55,27 @@ if ( !class_exists( 'FOFLog' ) )
             dbDelta( $sql );
         }
 
-        private function empty_log_entries()
+        private function clear_url_stats()
         {
             global $wpdb;
 
-            $table = $wpdb->prefix.'foflog_entries';
+            $table = $wpdb->prefix.'foflog_urls';
 
             $wpdb->query( "TRUNCATE TABLE {$table}" );
         }
 
-        private function delete_logs_except( $days )
-        {
-            $seconds = 60 * 60 * 24 * absint( $days );
-            // $seconds = $days;
+        // private function delete_urls_not_seen_since( $days )
+        // {
+        //     $seconds = 60 * 60 * 24 * absint( $days );
 
-            $boundary_timestamp = time() - $seconds;
+        //     $boundary_timestamp = time() - $seconds;
 
-            global $wpdb;
+        //     global $wpdb;
 
-            $table = $wpdb->prefix.'foflog_entries';
+        //     $table = $wpdb->prefix.'foflog_urls';
 
-            $wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE `last_seen` < %d", $boundary_timestamp ) );
-        }
+        //     $wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE `last_seen` < %d", $boundary_timestamp ) );
+        // }
 
         // > Constructor.
 
@@ -106,7 +105,7 @@ if ( !class_exists( 'FOFLog' ) )
             return 'foflog';
         }
 
-        private function admin_url( $args = [] )
+        private function plugin_admin_url( $args = [] )
         {
             $args['page'] = 'foflog';
 
@@ -136,11 +135,11 @@ if ( !class_exists( 'FOFLog' ) )
             return get_option( 'foflog_settings' );
         }
 
-        private function get_logs()
+        private function get_url_stats()
         {
             global $wpdb;
 
-            $table = $wpdb->prefix.'foflog_entries';
+            $table = $wpdb->prefix.'foflog_urls';
 
             return $wpdb->get_results(
                 "SELECT `url`, `hit_count`, `first_seen`, `last_seen`
@@ -157,11 +156,11 @@ if ( !class_exists( 'FOFLog' ) )
             update_option( 'foflog_settings', $settings );
         }
 
-        private function set_404_visit( $url )
+        private function count_404_hit( $url )
         {
             global $wpdb;
 
-            $table = $wpdb->prefix.'foflog_entries';
+            $table = $wpdb->prefix.'foflog_urls';
             $now   = time();
 
             $wpdb->query( $wpdb->prepare(
@@ -194,13 +193,13 @@ if ( !class_exists( 'FOFLog' ) )
 
         private function page_return()
         {
-            $return_link = $_SERVER['HTTP_REFERER'] ?? $this->admin_url();
+            $return_link = $_SERVER['HTTP_REFERER'] ?? $this->plugin_admin_url();
 
             echo '<p>'.__( 'Done!', $this->textdomain() ).'</p>';
             echo '<p><a href="'.$return_link.'">'.__( 'Return to settings', $this->textdomain() ).'</a>.</p>';
         }
 
-        private function display_log( $log_entries )
+        private function display_url_stats( $log_entries )
         {
 ?>
 <?php if ( !empty( $log_entries ) ): ?>
@@ -237,11 +236,11 @@ if ( !class_exists( 'FOFLog' ) )
             $subpages = [
                 [
                     'title' => __( 'Settings', $this->textdomain() ),
-                    'link'  => $this->admin_url( [ 'subpage' => 'settings' ] ),
+                    'link'  => $this->plugin_admin_url( [ 'subpage' => 'settings' ] ),
                 ],
                 [
                     'title' => __( 'Logs', $this->textdomain() ),
-                    'link'  => $this->admin_url( [ 'subpage' => 'logs' ] ),
+                    'link'  => $this->plugin_admin_url( [ 'subpage' => 'logs' ] ),
                 ],
             ];
 ?>
@@ -292,8 +291,8 @@ if ( !class_exists( 'FOFLog' ) )
             {
                 switch ( $action )
                 {
-                    case 'clear_logs':
-                        $this->empty_log_entries();
+                    case 'clear_url_stats':
+                        $this->clear_url_stats();
                         break;
                 }
 
@@ -346,7 +345,7 @@ if ( !class_exists( 'FOFLog' ) )
 <?php endif; // isset save-settings ?>
 
 <h2>Clear logs</h2>
-<p><a href="<?=$this->admin_url( [ 'subpage' => 'settings', 'action' => 'clear_logs' ] );?>" class="button">Clear DB logs</a></p>
+<p><a href="<?=$this->plugin_admin_url( [ 'subpage' => 'settings', 'action' => 'clear_url_stats' ] );?>" class="button">Clear logs</a></p>
 <?php
         }
 
@@ -355,7 +354,7 @@ if ( !class_exists( 'FOFLog' ) )
 ?>
 <h1><?php _e( 'Logs', $this->textdomain() ); ?></h1>
 
-<?php $this->display_log( $this->get_logs() ); ?>
+<?php $this->display_url_stats( $this->get_url_stats() ); ?>
 <?php
         }
 
@@ -372,10 +371,10 @@ if ( !class_exists( 'FOFLog' ) )
             // $this->cron_1_unschedule_task();
 
             // Deactivation should not change the state of the plugin.
-            // $this->empty_log_entries();
+            // $this->clear_url_stats();
         }
 
-        public function hook_register_settings_page()
+        public function hook_register_tools_page()
         {
             add_management_page(
                 __( '404 log', $this->textdomain() ), // page title
@@ -395,19 +394,19 @@ if ( !class_exists( 'FOFLog' ) )
 
         public function hook_register_settings_link( $links )
         {
-            $links['settings'] = '<a href="'.$this->admin_url().'">'.__( 'Settings', $this->textdomain() ).'</a>';
+            $links['settings'] = '<a href="'.$this->plugin_admin_url().'">'.__( 'Settings', $this->textdomain() ).'</a>';
 
             return $links;
         }
 
-        public function hook_log_404_visits()
+        public function hook_maybe_count_hit()
         {
             if ( !is_404() )
                 return;
 
             $url = parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH );
 
-            $this->set_404_visit( $url );
+            $this->count_404_hit( $url );
         }
 
         // > Crons.
@@ -420,7 +419,7 @@ if ( !class_exists( 'FOFLog' ) )
         //     if ( $days == 0 )
         //         return;
 
-        //     $this->delete_logs_except( $days );
+        //     $this->delete_urls_not_seen_since( $days );
         // }
 
         // public function cron_1_schedule_task()
@@ -446,8 +445,8 @@ if ( !class_exists( 'FOFLog' ) )
             // uninstall
             // see uninstall.php
 
-            // register settings page
-            add_action( 'admin_menu', [ $this, 'hook_register_settings_page' ] );
+            // register tools page
+            add_action( 'admin_menu', [ $this, 'hook_register_tools_page' ] );
             // register subpage nav
             add_action( 'current_screen', [ $this, 'hook_register_subpage_nav' ] );
             // register settings link
@@ -457,8 +456,8 @@ if ( !class_exists( 'FOFLog' ) )
             // add_action( 'foflog_cron_1', [ $this, 'cron_1_task' ] );
             // add_action( 'wp', [ $this, 'cron_1_schedule_task' ] );
 
-            // log 404 visits
-            add_action( 'template_redirect', [ $this, 'hook_log_404_visits' ], 1 );
+            // maybe log hit
+            add_action( 'template_redirect', [ $this, 'hook_maybe_count_hit' ] );
         }
     }
 
