@@ -23,8 +23,9 @@ if ( !class_exists( 'FOFLog' ) )
     class FOFLog
     {
         private $settings_defaults = [
-            'track_users'    => false,
-            'retention_days' => 30,
+            'retention_days'            => 30,
+            'track_users'               => false,
+            'delete_plugin_delete_data' => true,
         ];
 
         // > Unsorted.
@@ -32,7 +33,7 @@ if ( !class_exists( 'FOFLog' ) )
         private function create_settings()
         {
             if ( !get_option( 'foflog_settings' ) )
-                add_option( 'foflog_settings', [], '', false );
+                add_option( 'foflog_settings', $this->settings_defaults, '', false );
         }
 
         private function create_tables()
@@ -109,7 +110,7 @@ if ( !class_exists( 'FOFLog' ) )
             $info_html = ( !$info ? '' : '<span class="dashicons dashicons-info-outline" style="font-size: 1rem;" title="'.htmlentities( $info ).'"></span>' );
 ?>
     <div class="checkbox">
-        <label for="label-<?=esc_attr( $key );?>" title="<?=esc_attr( $label );?>">
+        <label for="label-<?=esc_attr( $key );?>">
             <input type="checkbox" name="<?=esc_attr( $key );?>" id="label-<?=esc_attr( $key );?>" value="1" <?php checked( $value, true ); ?>>
             <?=esc_html( $label );?>
         </label>
@@ -123,7 +124,7 @@ if ( !class_exists( 'FOFLog' ) )
             $info_html = ( !$info ? '' : '<span class="dashicons dashicons-info-outline" style="font-size: 1rem;" title="'.htmlentities( $info ).'"></span>' );
 ?>
     <div class="absint">
-        <label for="label-<?=esc_attr( $key );?>" title="<?=esc_attr( $label );?>">
+        <label for="label-<?=esc_attr( $key );?>">
             <?=esc_html( $label );?>
             <input type="number" min="0" step="1" name="<?=esc_attr( $key );?>" id="label-<?=esc_attr( $key );?>" value="<?=esc_attr( absint( $value ) );?>">
         </label>
@@ -136,9 +137,7 @@ if ( !class_exists( 'FOFLog' ) )
 
         private function get_settings()
         {
-            $settings = get_option( 'foflog_settings', [] );
-
-            return wp_parse_args( $settings, $this->settings_defaults );
+            return get_option( 'foflog_settings', $this->settings_defaults );
         }
 
         private function get_url_stats()
@@ -285,8 +284,9 @@ if ( !class_exists( 'FOFLog' ) )
 
             $settings = $this->get_settings();
 
-            $settings['track_users']    = (bool) isset( $_POST['track_users'] );
-            $settings['retention_days'] = absint( $_POST['retention_days'] ?? 0 );
+            $settings['retention_days']            = absint( $_POST['retention_days'] ?? 0 );
+            $settings['track_users']               = (bool) isset( $_POST['track_users'] );
+            $settings['delete_plugin_delete_data'] = (bool) isset( $_POST['delete_plugin_delete_data'] );
 
             $this->set_settings( $settings );
         }
@@ -338,6 +338,13 @@ if ( !class_exists( 'FOFLog' ) )
 <form method="post">
 
 <?php
+            $this->html_absint(
+                'retention_days',
+                $settings['retention_days'],
+                __( 'Prune stale 404s after (days)', $this->textdomain() ),
+                __( 'Hits that have not occurred again within this many days are automatically removed. Set to 0 to disable.', $this->textdomain() )
+            );
+
             $this->html_checkbox(
                 'track_users',
                 $settings['track_users'],
@@ -345,11 +352,11 @@ if ( !class_exists( 'FOFLog' ) )
                 __( 'Enable if your website is primarily used by logged in users.', $this->textdomain() )
             );
 
-            $this->html_absint(
-                'retention_days',
-                $settings['retention_days'],
-                __( 'Prune stale 404s after (days)', $this->textdomain() ),
-                __( 'Hits that have not occurred again within this many days are automatically removed. Set to 0 to disable.', $this->textdomain() )
+            $this->html_checkbox(
+                'delete_plugin_delete_data',
+                $settings['delete_plugin_delete_data'],
+                __( 'Delete all data when the plugin is deleted', $this->textdomain() ),
+                __( 'Uncheck to keep your logs and preferences.', $this->textdomain() )
             );
 ?>
 
