@@ -53,7 +53,7 @@ if ( !class_exists( 'FOFLog' ) )
                 first_seen bigint(20) unsigned NOT NULL,
                 last_seen bigint(20) unsigned NOT NULL,
                 PRIMARY KEY  (id),
-                KEY  url (url),
+                UNIQUE KEY  url (url),
                 KEY  last_seen (last_seen)
             ) $charset;";
 
@@ -69,10 +69,6 @@ if ( !class_exists( 'FOFLog' ) )
             $table = $wpdb->prefix.'foflog_urls';
 
             $wpdb->query( "TRUNCATE TABLE {$table}" );
-        }
-
-        private function clear_selected_urls()
-        {
         }
 
         // > Debug.
@@ -141,20 +137,6 @@ if ( !class_exists( 'FOFLog' ) )
             return get_option( 'foflog_settings', $this->settings_defaults );
         }
 
-        private function get_url_stats()
-        {
-            global $wpdb;
-
-            $table = $wpdb->prefix.'foflog_urls';
-
-            return $wpdb->get_results(
-                "SELECT `url`, `hit_count`, `first_seen`, `last_seen`
-                FROM {$table}
-                ORDER BY `hit_count` DESC, `last_seen` DESC",
-                ARRAY_A
-            );
-        }
-
         // > Setters.
 
         private function set_settings( $settings = [] )
@@ -206,36 +188,6 @@ if ( !class_exists( 'FOFLog' ) )
             echo '<p><a href="'.$return_link.'">'.__( 'Return to settings', $this->textdomain() ).'</a>.</p>';
         }
 
-        private function display_url_stats( $log_entries )
-        {
-?>
-<?php if ( !empty( $log_entries ) ): ?>
-<table class="wp-list-table widefat fixed striped" style="width: auto; margin-top: 10px;">
-    <thead>
-        <tr>
-            <td><?php _e( 'Hits', $this->textdomain() ); ?></td>
-            <td><?php _e( 'URL', $this->textdomain() ); ?></td>
-            <td><?php _e( 'First seen', $this->textdomain() ); ?></td>
-            <td><?php _e( 'Last seen', $this->textdomain() ); ?></td>
-        </tr>
-    </thead>
-    <tbody>
-<?php foreach ( $log_entries as $log_entry ): ?>
-        <tr>
-            <td><?=$log_entry['hit_count'];?></td>
-            <td><?=esc_html( $log_entry['url'] );?></td>
-            <td><?=wp_date( 'Y-m-d H:i', $log_entry['first_seen'] );?></td>
-            <td><?=wp_date( 'Y-m-d H:i', $log_entry['last_seen'] );?></td>
-        </tr>
-<?php endforeach; // $log_entries ?>
-    </tbody>
-</table>
-<?php else: // $log_entries is empty ?>
-    <p><?php _e( 'No log entries found.', $this->textdomain() ); ?></p>
-<?php endif; // $log_entries ?>
-<?php
-        }
-
         // > Nav.
 
         public function subpage_nav()
@@ -243,11 +195,11 @@ if ( !class_exists( 'FOFLog' ) )
             $subpages = [
                 [
                     'title' => __( 'Settings', $this->textdomain() ),
-                    'link'  => $this->plugin_admin_url( [ 'subpage' => 'settings' ] ),
+                    'link'  => $this->plugin_admin_url( [ 'foflog_subpage' => 'settings' ] ),
                 ],
                 [
                     'title' => __( 'Log', $this->textdomain() ),
-                    'link'  => $this->plugin_admin_url( [ 'subpage' => 'log' ] ),
+                    'link'  => $this->plugin_admin_url( [ 'foflog_subpage' => 'log' ] ),
                 ],
             ];
 ?>
@@ -298,8 +250,8 @@ if ( !class_exists( 'FOFLog' ) )
         {
             $this->page_header();
 
-            $action  = $_GET['action'] ?? false;
-            $subpage = $_GET['subpage'] ?? 'settings';
+            $action  = $_GET['foflog_action'] ?? false;
+            $subpage = $_GET['foflog_subpage'] ?? 'settings';
 
             if ( $action )
             {
@@ -377,16 +329,29 @@ if ( !class_exists( 'FOFLog' ) )
 <?php endif; // isset save-settings ?>
 
 <h2>Tools</h2>
-<p><a href="<?=$this->plugin_admin_url( [ 'subpage' => 'settings', 'action' => 'clear_all_urls' ] );?>" class="button">Clear all URLs</a></p>
+<p><a href="<?=$this->plugin_admin_url( [ 'foflog_subpage' => 'settings', 'foflog_action' => 'clear_all_urls' ] );?>" class="button">Clear all URLs</a></p>
 <?php
         }
 
         private function page_log()
         {
+            require_once( dirname( FOFLOG_FILE_PATH ).'/class-foflog-log-table.php' );
+
+            $log_table = new FOFLog_Log_Table();
+
+            $log_table->prepare_items();
 ?>
 <h1><?php _e( 'Log', $this->textdomain() ); ?></h1>
 
-<?php $this->display_url_stats( $this->get_url_stats() ); ?>
+<form method="get">
+    <input type="hidden" name="page" value="foflog">
+    <input type="hidden" name="foflog_subpage" value="log">
+
+<?php
+            $log_table->search_box( __( 'Search URLs', $this->textdomain() ), 'foflog-log-search' );
+            $log_table->display();
+?>
+</form>
 <?php
         }
 
