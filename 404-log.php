@@ -157,8 +157,15 @@ if ( !class_exists( 'FOFLog' ) )
         {
             global $wpdb;
 
+            $url = parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH );
+
+            // guard against malformed requests and paths longer than the column size
+            if ( !is_string( $url ) || $url === '' )
+                return;
+
+            $url = mb_substr( $url, 0, 255 );
+
             $table = self::table_name();
-            $url   = parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH );
             $now   = time();
 
             $wpdb->query( $wpdb->prepare(
