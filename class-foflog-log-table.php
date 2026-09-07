@@ -28,7 +28,7 @@ if ( !class_exists( 'FOFLog_Log_Table' ) )
 
         public function prepare_items()
         {
-            $this->process_bulk_action();
+            $this->process_actions();
 
             $search  = trim( wp_unslash( $_GET['s'] ?? '' ) );
             $order   = ( strtolower( $_GET['order'] ?? '' ) === 'asc' ? 'ASC' : 'DESC' );
@@ -94,18 +94,34 @@ if ( !class_exists( 'FOFLog_Log_Table' ) )
 
         // > Actions.
 
-        public function process_bulk_action()
+        public function process_actions()
         {
-            if ( $this->current_action() !== 'delete' )
+            $action = $this->current_action();
+
+            if ( ! $action )
                 return;
 
             // Nonce is emitted by WP_List_Table::display_tablenav() with
-            // action 'bulk-' . $this->_args['plural'].
+            // action 'bulk-' . $this->_args['plural']. It covers the bulk
+            // form and the per-row links, which target the same admin user.
             check_admin_referer( 'bulk-foflog-log-entries' );
 
             if ( !current_user_can( 'manage_options' ) )
                 return;
 
+            switch ( $action )
+            {
+                case 'delete':
+                    $this->bulk_delete_urls();
+                    break;
+                case 'delete_row':
+                    $this->delete_url();
+                    break;
+            }
+        }
+
+        private function bulk_delete_urls()
+        {
             $ids = array_filter( array_map( 'absint', (array) ( $_GET[ $this->_args['plural'] ] ?? [] ) ) );
 
             if ( empty( $ids ) )
@@ -122,12 +138,30 @@ if ( !class_exists( 'FOFLog_Log_Table' ) )
             ) );
         }
 
+        private function delete_url()
+        {
+            $id = absint( $_GET['foflog_url_id'] ?? 0 );
+
+            if ( $id === 0 )
+                return;
+
+            global $wpdb;
+
+            $table = $wpdb->prefix.'foflog_urls';
+
+            $wpdb->query( $wpdb->prepare(
+                "DELETE FROM {$table} WHERE `id` = %d",
+                $id
+            ) );
+        }
+
         // > Columns.
 
         public function get_columns()
         {
             return [
                 'cb'         => '<input type="checkbox" />',
+                'delete'     => '',
                 'hit_count'  => __( 'Hits', $this->textdomain ),
                 'url'        => __( 'URL', $this->textdomain ),
                 'first_seen' => __( 'First seen', $this->textdomain ),
@@ -155,6 +189,19 @@ if ( !class_exists( 'FOFLog_Log_Table' ) )
         public function column_cb( $item )
         {
             return '<input type="checkbox" name="'.$this->_args['plural'].'[]" value="'.absint( $item['id'] ).'" />';
+        }
+
+        public function column_delete( $item )
+        {
+            $url = add_query_arg( [
+                'action'        => 'delete_row',
+                'foflog_url_id' => absint( $item['id'] ),
+                '_wpnonce'      => wp_create_nonce( 'bulk-foflog-log-entries' ),
+            ] );
+
+            return '<a href="'.esc_url( $url ).'" title="'.esc_attr__( 'Delete', $this->textdomain ).'" aria-label="'.esc_attr__( 'Delete', $this->textdomain ).'">'
+                .'<span class="dashicons dashicons-trash"></span>'
+                .'</a>';
         }
 
         public function column_hit_count( $item )
