@@ -45,7 +45,7 @@ if ( !class_exists( 'FOFLog_Log_Table' ) )
 
             global $wpdb;
 
-            $table = $wpdb->prefix.'foflog_urls';
+            $table = FOFLog::table_name();
 
             $sql_where  = '';
             $sql_params = [];
@@ -98,7 +98,7 @@ if ( !class_exists( 'FOFLog_Log_Table' ) )
         {
             $action = $this->current_action();
 
-            if ( ! $action )
+            if ( !$action )
                 return;
 
             // Nonce is emitted by WP_List_Table::display_tablenav() with
@@ -129,7 +129,7 @@ if ( !class_exists( 'FOFLog_Log_Table' ) )
 
             global $wpdb;
 
-            $table        = $wpdb->prefix.'foflog_urls';
+            $table        = FOFLog::table_name();
             $placeholders = implode( ', ', array_fill( 0, count( $ids ), '%d' ) );
 
             $wpdb->query( $wpdb->prepare(
@@ -147,7 +147,7 @@ if ( !class_exists( 'FOFLog_Log_Table' ) )
 
             global $wpdb;
 
-            $table = $wpdb->prefix.'foflog_urls';
+            $table = FOFLog::table_name();
 
             $wpdb->query( $wpdb->prepare(
                 "DELETE FROM {$table} WHERE `id` = %d",

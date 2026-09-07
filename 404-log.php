@@ -21,6 +21,8 @@ if ( !class_exists( 'FOFLog' ) )
 {
     class FOFLog
     {
+        private const SETTINGS_KEY = 'foflog_settings';
+
         private $settings_defaults = [
             'retention_days'            => 30,
             'track_users'               => false,
@@ -29,17 +31,24 @@ if ( !class_exists( 'FOFLog' ) )
 
         // > Unsorted.
 
+        public static function table_name()
+        {
+            global $wpdb;
+
+            return $wpdb->prefix.'foflog_urls';
+        }
+
         private function create_settings()
         {
-            if ( !get_option( 'foflog_settings' ) )
-                add_option( 'foflog_settings', $this->settings_defaults, '', false );
+            if ( !get_option( self::SETTINGS_KEY ) )
+                add_option( self::SETTINGS_KEY, $this->settings_defaults, '', false );
         }
 
         private function create_tables()
         {
             global $wpdb;
 
-            $table   = $wpdb->prefix.'foflog_urls';
+            $table   = self::table_name();
             $charset = $wpdb->get_charset_collate();
 
             // if the table already exists, abort
@@ -66,7 +75,7 @@ if ( !class_exists( 'FOFLog' ) )
         {
             global $wpdb;
 
-            $table = $wpdb->prefix.'foflog_urls';
+            $table = self::table_name();
 
             $wpdb->query( "TRUNCATE TABLE {$table}" );
         }
@@ -134,21 +143,21 @@ if ( !class_exists( 'FOFLog' ) )
 
         private function get_settings()
         {
-            return get_option( 'foflog_settings', $this->settings_defaults );
+            return get_option( self::SETTINGS_KEY, $this->settings_defaults );
         }
 
         // > Setters.
 
         private function set_settings( $settings = [] )
         {
-            update_option( 'foflog_settings', $settings );
+            update_option( self::SETTINGS_KEY, $settings );
         }
 
         private function add_404_url()
         {
             global $wpdb;
 
-            $table = $wpdb->prefix.'foflog_urls';
+            $table = self::table_name();
             $url   = parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH );
             $now   = time();
 
@@ -420,7 +429,7 @@ if ( !class_exists( 'FOFLog' ) )
 
             global $wpdb;
 
-            $table = $wpdb->prefix.'foflog_urls';
+            $table = self::table_name();
 
             $wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE `last_seen` < %d", $boundary_timestamp ) );
         }
